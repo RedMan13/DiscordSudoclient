@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -28,46 +29,58 @@ namespace DiscordSudoclient
     class GatwayPacket
     {
         public GatewayOpcode op;
-        public JsonObject d;
-        public int s;
-        public string t;
+        public JsonValue d;
+        public int? s;
+        public string? t;
     }
     class Gateway
     {
         public static byte[] StreamEnd = { 0x00, 0x00, 0xFF, 0xFF };
         public static Uri Url = new Uri("wss://gateway.discord.gg?v=9&encoding=json&compress=zlib-stream");
+        private int Seq;
         private WebsocketClient Socket;
-        private Stream Message;
-        private ZLibStream Inflator;
-        private const int ByteLength = 0xFFFFFF;
-        private byte[] MessageBytes = new byte[ByteLength];
+        private byte[] Message = new byte[0];
+        private System.Timers.Timer HeartBeat = new System.Timers.Timer();
         public Gateway()
         {
+            HeartBeat.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) =>
+            {
+                Send(new GatwayPacket { op = GatewayOpcode.Heartbeat, d = (JsonValue)(Seq) });
+            };
+            HeartBeat.AutoReset = true;
             Socket = new WebsocketClient(Url);
             Socket.IsTextMessageConversionEnabled = false;
             Socket.MessageReceived.Subscribe(OnMessage);
-            FlushInflator(true);
             Socket.Start();
         }
-        void OnPacket(GatewayOpcode op, object data, int seq, string ev) {
-        
-        }
-        async void FlushInflator(bool init = false)
+        void Send(GatwayPacket packet)
         {
-            if (Message != null) Message.Dispose();
-            Message = new MemoryStream();
-            Inflator = new ZLibStream(Message, CompressionMode.Decompress);
-            if (init) return;
-            Inflator.BeginRead(MessageBytes, 0, ByteLength, result =>
+            string toSend = JsonSerializer.Serialize(packet);
+            Socket.Send(toSend);
+        }
+        void OnPacket(GatewayOpcode op, Dictionary<string, JsonValue> data, int seq, string ev) {
+            if (seq != null) Seq = seq;
+            switch (op)
             {
-                string data = Encoding.UTF8.GetString(MessageBytes);
-                var packet = JsonSerializer.Deserialize<GatwayPacket>(data);
-                OnPacket(packet.op, packet.d, packet.s, packet.t);
-            }, new object());
+                case GatewayOpcode.Hello:
+                    HeartBeat.Interval = ((double)data["heartbeat_interval"]);
+                    break;
+            }
+        }
+        async void FlushInflator()
+        {
+            byte[] trimmed = Message.Take(new Range(2, Message.Length)).ToArray();
+            MemoryStream memoryStream = new MemoryStream(trimmed);
+            DeflateStream deflateStream = new DeflateStream(memoryStream, CompressionMode.Decompress);
+            MemoryStream decompressedStream = new MemoryStream();
+            deflateStream.CopyTo(decompressedStream);
+            string data = Encoding.UTF8.GetString(decompressedStream.ToArray());
+            var packet = JsonSerializer.Deserialize<GatwayPacket>(data);
+            OnPacket(packet.op, packet.d., packet.s, packet.t);
         }
         void OnMessage(ResponseMessage msg) {
             byte[] end = msg.Binary.Take(new Range(msg.Binary.Length - 4, msg.Binary.Length)).ToArray();
-            Inflator.Write(msg.Binary);
+            Message = Message.Concat(msg.Binary).ToArray();
             if (end[0] == StreamEnd[0] && end[1] == StreamEnd[1] && end[2] == StreamEnd[2] && end[3] == StreamEnd[3]) 
                 FlushInflator();
         }
