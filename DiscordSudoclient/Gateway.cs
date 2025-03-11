@@ -8,6 +8,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Websocket.Client;
+using Newtonsoft.Json.Linq;
+using System.Reflection;
 
 namespace DiscordSudoclient
 {
@@ -26,26 +28,21 @@ namespace DiscordSudoclient
         HeartbeatACK            = 11, // [Receive] Sent in response to receiving a heartbeat to acknowledge that it has been received.
         RequestSoundboardSounds = 31, // [Send]    Request information about soundboard sounds in a set of guilds.
     }
-    class GatwayPacket
-    {
-        public GatewayOpcode op;
-        public JsonValue d;
-        public int? s;
-        public string? t;
-    }
     class Gateway
     {
         public static byte[] StreamEnd = { 0x00, 0x00, 0xFF, 0xFF };
         public static Uri Url = new Uri("wss://gateway.discord.gg?v=9&encoding=json&compress=zlib-stream");
-        private int Seq;
+        private int? Seq;
         private WebsocketClient Socket;
         private byte[] Message = new byte[0];
         private System.Timers.Timer HeartBeat = new System.Timers.Timer();
-        public Gateway()
+        private string Token;
+        public Gateway(string token)
         {
+            Token = token;
             HeartBeat.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) =>
             {
-                Send(new GatwayPacket { op = GatewayOpcode.Heartbeat, d = (JsonValue)(Seq) });
+                Send(GatewayOpcode.Heartbeat, new JObject(Seq));
             };
             HeartBeat.AutoReset = true;
             Socket = new WebsocketClient(Url);
@@ -53,17 +50,33 @@ namespace DiscordSudoclient
             Socket.MessageReceived.Subscribe(OnMessage);
             Socket.Start();
         }
-        void Send(GatwayPacket packet)
-        {
-            string toSend = JsonSerializer.Serialize(packet);
-            Socket.Send(toSend);
-        }
-        void OnPacket(GatewayOpcode op, Dictionary<string, JsonValue> data, int seq, string ev) {
+
+        public delegate void GatewayDispatchEvent(string ev, JToken data);
+        public event GatewayDispatchEvent Dispatch;
+        void OnPacket(GatewayOpcode op, JToken data, int? seq, string? ev) {
             if (seq != null) Seq = seq;
             switch (op)
             {
+                case GatewayOpcode.Dispatch:
+                    Dispatch(ev, data); break;
+                case GatewayOpcode.Heartbeat:
+                    Send(GatewayOpcode.HeartbeatACK); break;
                 case GatewayOpcode.Hello:
                     HeartBeat.Interval = ((double)data["heartbeat_interval"]);
+                    HeartBeat.Enabled = true;
+                    var msg = new JObject();
+                    msg["token"]        = Token;
+                    msg["capabilities"] = 16381;
+                    msg["properties"]   = new JObject();
+                    msg["presence"]     = new JObject();
+                    msg["presence"]["status"]     = "online";
+                    msg["presence"]["since"]      = 0;
+                    msg["presence"]["activities"] = new JArray();
+                    msg["presence"]["afk"]        = false;
+                    msg["compress"]     = false;
+                    msg["client_state"] = new JObject();
+                    msg["client_state"]["guild_versions"] = new JArray();
+                    Send(GatewayOpcode.Identify, msg);
                     break;
             }
         }
@@ -75,14 +88,23 @@ namespace DiscordSudoclient
             MemoryStream decompressedStream = new MemoryStream();
             deflateStream.CopyTo(decompressedStream);
             string data = Encoding.UTF8.GetString(decompressedStream.ToArray());
-            var packet = JsonSerializer.Deserialize<GatwayPacket>(data);
-            OnPacket(packet.op, packet.d., packet.s, packet.t);
+            var packet = JObject.Parse(data);
+            OnPacket((GatewayOpcode)(int)packet["op"], packet["d"], (int)(packet["s"]), (string)(packet["t"]));
         }
         void OnMessage(ResponseMessage msg) {
             byte[] end = msg.Binary.Take(new Range(msg.Binary.Length - 4, msg.Binary.Length)).ToArray();
             Message = Message.Concat(msg.Binary).ToArray();
             if (end[0] == StreamEnd[0] && end[1] == StreamEnd[1] && end[2] == StreamEnd[2] && end[3] == StreamEnd[3]) 
                 FlushInflator();
+        }
+
+        void Send(GatewayOpcode op) { Send(op, null); }
+        void Send(GatewayOpcode op, JObject? d)
+        {
+            var toSend = new JObject();
+            toSend["op"] = (int)op;
+            toSend["d"] = d;
+            Socket.Send(toSend.ToString());
         }
     }
 }

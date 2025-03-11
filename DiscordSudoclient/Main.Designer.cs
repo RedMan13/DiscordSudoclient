@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             flpServers = new FlowLayoutPanel();
-            flpMessages = new FlowLayoutPanel();
             flowLayoutPanel3 = new FlowLayoutPanel();
+            flpMessages = new FlowLayoutPanel();
             flpChannels = new FlowLayoutPanel();
             flpServers.SuspendLayout();
             SuspendLayout();
@@ -44,14 +44,6 @@
             flpServers.Size = new Size(41, 379);
             flpServers.TabIndex = 1;
             // 
-            // flpMessages
-            // 
-            flpMessages.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            flpMessages.Location = new Point(206, 12);
-            flpMessages.Name = "flpMessages";
-            flpMessages.Size = new Size(685, 379);
-            flpMessages.TabIndex = 2;
-            // 
             // flowLayoutPanel3
             // 
             flowLayoutPanel3.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
@@ -59,6 +51,14 @@
             flowLayoutPanel3.Name = "flowLayoutPanel3";
             flowLayoutPanel3.Size = new Size(41, 0);
             flowLayoutPanel3.TabIndex = 2;
+            // 
+            // flpMessages
+            // 
+            flpMessages.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            flpMessages.Location = new Point(206, 12);
+            flpMessages.Name = "flpMessages";
+            flpMessages.Size = new Size(685, 379);
+            flpMessages.TabIndex = 2;
             // 
             // flpChannels
             // 
