@@ -127,6 +127,7 @@ namespace DiscordSudoclient
             toSend["d"] = d;
             Socket.Send(toSend.ToString());
         }
+        async Task<JObject> GetHTTP(string path) { return GetHTTP(path, new Dictionary<string, string>()); }
         async Task<JObject> GetHTTP(string path, Dictionary<string, string> args)
         {
             string url = $"https://discord.com/api/v9{path}";
@@ -142,11 +143,11 @@ namespace DiscordSudoclient
             string res = await req.Content.ReadAsStringAsync();
             return JObject.Parse(res);
         }
-        async Task<JObject> GetHTTP(string path, JObject body)
+        async Task<JObject> PostHTTP(string path, JObject body)
         {
             string url = $"https://discord.com/api/v9{path}";
-            var data = new JsonContent();
-            var req = await httpClient.PostAsync(url, );
+            var data = JsonContent.Create<JObject>(body, new MediaTypeHeaderValue("application/json"));
+            var req = await httpClient.PostAsync(url, data);
             req.EnsureSuccessStatusCode();
             string res = await req.Content.ReadAsStringAsync();
             return JObject.Parse(res);
