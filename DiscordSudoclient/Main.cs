@@ -60,7 +60,7 @@ namespace DiscordSudoclient
         public Main()
         {
             InitializeComponent();
-            Client = new Gateway("ODYwNTMxNzQ2Mjk0NzI2NzM2.GNl3Vt.xSoNDd5Iy9NEXph4M2i3bbH4svpPmKbMdd-PmE");
+            Client = new Gateway("MTA2MDg1NzE4Mzc1Mjk0OTc5MA.GY_eNX.oeFw-DUQKCUqgTp1ona7laVFdzea0ioTw0xTAo");
             Client.Dispatch += OnDispatch;
         }
         void OnServerSelect(string id) { SelectedServer = id; }
