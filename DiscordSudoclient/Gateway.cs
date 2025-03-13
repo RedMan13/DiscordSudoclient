@@ -1,16 +1,34 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO.Compression;
-using System.Linq;
-using System.Runtime.InteropServices.JavaScript;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Threading.Tasks;
+﻿using System.Text;
 using Websocket.Client;
 using Newtonsoft.Json.Linq;
-using System.Reflection;
+using Ionic.Zlib;
+using System.Net.Http.Json;
 
+// coppied from https://stackoverflow.com/a/66261077
+public class ZlibStreamContext
+{
+    private ZlibCodec _inflator;
+
+    public ZlibStreamContext(bool expectRFC1950Header = false)
+    {
+        _inflator = new ZlibCodec();
+        _inflator.InitializeInflate(expectRFC1950Header);
+    }
+
+    public byte[] InflateByteArray(byte[] deflatedBytes)
+    {
+        _inflator.InputBuffer = deflatedBytes;
+        _inflator.AvailableBytesIn = deflatedBytes.Length;
+        // account for a lot of possible size inflation (could be much larger than 4x)
+        _inflator.OutputBuffer = new byte[0xFFFFFF];
+        _inflator.AvailableBytesOut = _inflator.OutputBuffer.Length;
+        _inflator.NextIn = 0;
+        _inflator.NextOut = 0;
+
+        _inflator.Inflate(FlushType.Sync);
+        return _inflator.OutputBuffer[0.._inflator.NextOut];
+    }
+}
 namespace DiscordSudoclient
 {
     enum GatewayOpcode
@@ -37,8 +55,13 @@ namespace DiscordSudoclient
         private byte[] Message = new byte[0];
         private System.Timers.Timer HeartBeat = new System.Timers.Timer();
         private string Token;
+        private ZlibStreamContext DecompressContext = new ZlibStreamContext(false);
+        private bool FirstMessage = true;
+        private HttpClient httpClient = new HttpClient();
         public Gateway(string token)
         {
+            httpClient.DefaultRequestHeaders.Add("Authorization", token);
+            httpClient.DefaultRequestHeaders.Add("Content-Type", "application/json");
             Token = token;
             HeartBeat.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) =>
             {
@@ -82,18 +105,16 @@ namespace DiscordSudoclient
         }
         async void FlushInflator()
         {
-            byte[] trimmed = Message.Take(new Range(2, Message.Length)).ToArray();
-            MemoryStream memoryStream = new MemoryStream(trimmed);
-            DeflateStream deflateStream = new DeflateStream(memoryStream, CompressionMode.Decompress);
-            MemoryStream decompressedStream = new MemoryStream();
-            deflateStream.CopyTo(decompressedStream);
-            string data = Encoding.UTF8.GetString(decompressedStream.ToArray());
+            byte[] decompressed = DecompressContext.InflateByteArray(Message);
+            string data = Encoding.UTF8.GetString(decompressed);
             var packet = JObject.Parse(data);
-            OnPacket((GatewayOpcode)(int)packet["op"], packet["d"], (int)(packet["s"]), (string)(packet["t"]));
+            Message = new byte[0];
+            OnPacket((GatewayOpcode)(int)packet["op"], packet["d"], (int?)(packet["s"]), (string?)(packet["t"]));
         }
         void OnMessage(ResponseMessage msg) {
             byte[] end = msg.Binary.Take(new Range(msg.Binary.Length - 4, msg.Binary.Length)).ToArray();
-            Message = Message.Concat(msg.Binary).ToArray();
+            Message = Message.Concat(FirstMessage ? msg.Binary.Take(new Range(2, msg.Binary.Length)) : msg.Binary).ToArray();
+            FirstMessage = false;
             if (end[0] == StreamEnd[0] && end[1] == StreamEnd[1] && end[2] == StreamEnd[2] && end[3] == StreamEnd[3]) 
                 FlushInflator();
         }
@@ -105,6 +126,30 @@ namespace DiscordSudoclient
             toSend["op"] = (int)op;
             toSend["d"] = d;
             Socket.Send(toSend.ToString());
+        }
+        async Task<JObject> GetHTTP(string path, Dictionary<string, string> args)
+        {
+            string url = $"https://discord.com/api/v9{path}";
+            bool firstArg = true;
+            foreach (var arg in args)
+            {
+                url += firstArg ? "?" : "&";
+                url += $"{arg.Key}={arg.Value}";
+                firstArg = false;
+            }
+            var req = await httpClient.GetAsync(url);
+            req.EnsureSuccessStatusCode();
+            string res = await req.Content.ReadAsStringAsync();
+            return JObject.Parse(res);
+        }
+        async Task<JObject> GetHTTP(string path, JObject body)
+        {
+            string url = $"https://discord.com/api/v9{path}";
+            var data = new JsonContent();
+            var req = await httpClient.PostAsync(url, );
+            req.EnsureSuccessStatusCode();
+            string res = await req.Content.ReadAsStringAsync();
+            return JObject.Parse(res);
         }
     }
 }

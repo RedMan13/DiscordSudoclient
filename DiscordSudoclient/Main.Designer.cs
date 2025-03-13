@@ -32,16 +32,19 @@
             flowLayoutPanel3 = new FlowLayoutPanel();
             flpMessages = new FlowLayoutPanel();
             flpChannels = new FlowLayoutPanel();
+            pbSelectedIcon = new PictureBox();
             flpServers.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pbSelectedIcon).BeginInit();
             SuspendLayout();
             // 
             // flpServers
             // 
             flpServers.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            flpServers.AutoScroll = true;
             flpServers.Controls.Add(flowLayoutPanel3);
-            flpServers.Location = new Point(12, 12);
+            flpServers.Location = new Point(12, 59);
             flpServers.Name = "flpServers";
-            flpServers.Size = new Size(41, 379);
+            flpServers.Size = new Size(62, 332);
             flpServers.TabIndex = 1;
             // 
             // flowLayoutPanel3
@@ -55,24 +58,36 @@
             // flpMessages
             // 
             flpMessages.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            flpMessages.Location = new Point(206, 12);
+            flpMessages.AutoScroll = true;
+            flpMessages.Location = new Point(248, 12);
             flpMessages.Name = "flpMessages";
-            flpMessages.Size = new Size(685, 379);
+            flpMessages.Size = new Size(643, 379);
             flpMessages.TabIndex = 2;
             // 
             // flpChannels
             // 
             flpChannels.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            flpChannels.Location = new Point(59, 12);
+            flpChannels.AutoScroll = true;
+            flpChannels.Location = new Point(80, 12);
             flpChannels.Name = "flpChannels";
-            flpChannels.Size = new Size(141, 379);
+            flpChannels.Size = new Size(162, 379);
             flpChannels.TabIndex = 3;
+            // 
+            // pbSelectedIcon
+            // 
+            pbSelectedIcon.Location = new Point(20, 12);
+            pbSelectedIcon.Name = "pbSelectedIcon";
+            pbSelectedIcon.Size = new Size(41, 41);
+            pbSelectedIcon.SizeMode = PictureBoxSizeMode.Zoom;
+            pbSelectedIcon.TabIndex = 4;
+            pbSelectedIcon.TabStop = false;
             // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(903, 403);
+            Controls.Add(pbSelectedIcon);
             Controls.Add(flpMessages);
             Controls.Add(flpChannels);
             Controls.Add(flpServers);
@@ -80,6 +95,7 @@
             Name = "Main";
             Text = "Form1";
             flpServers.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)pbSelectedIcon).EndInit();
             ResumeLayout(false);
         }
 
@@ -90,5 +106,6 @@
         private FlowLayoutPanel flpMessages;
         private FlowLayoutPanel flowLayoutPanel3;
         private FlowLayoutPanel flpChannels;
+        private PictureBox pbSelectedIcon;
     }
 }

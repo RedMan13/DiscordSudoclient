@@ -39,14 +39,17 @@
             lblName.Size = new Size(71, 15);
             lblName.TabIndex = 0;
             lblName.Text = "😺┃silly-cats";
+            lblName.Click += Channel_Click;
             // 
             // Channel
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(lblName);
+            Cursor = Cursors.Hand;
             Name = "Channel";
             Size = new Size(141, 21);
+            Click += Channel_Click;
             ResumeLayout(false);
             PerformLayout();
         }

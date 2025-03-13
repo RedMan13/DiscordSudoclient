@@ -40,12 +40,14 @@
             pbIcon.SizeMode = PictureBoxSizeMode.Zoom;
             pbIcon.TabIndex = 0;
             pbIcon.TabStop = false;
+            pbIcon.Click += pbIcon_Click;
             // 
             // Server
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(pbIcon);
+            Cursor = Cursors.Hand;
             Name = "Server";
             Size = new Size(41, 41);
             ((System.ComponentModel.ISupportInitialize)pbIcon).EndInit();
