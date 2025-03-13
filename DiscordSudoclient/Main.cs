@@ -62,7 +62,6 @@ namespace DiscordSudoclient
             InitializeComponent();
             Client = new Gateway("ODYwNTMxNzQ2Mjk0NzI2NzM2.GNl3Vt.xSoNDd5Iy9NEXph4M2i3bbH4svpPmKbMdd-PmE");
             Client.Dispatch += OnDispatch;
-            var result = httpClient.GetAsync("https://www.google.com").Result;
         }
         void OnServerSelect(string id) { SelectedServer = id; }
         void OnChannelSelect(string id) { SelectedChannel = id; }
