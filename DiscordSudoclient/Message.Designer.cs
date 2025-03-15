@@ -38,9 +38,11 @@
             // 
             pbUser.ImageLocation = "https://cdn.discordapp.com/embed/avatars/{index}embed/avatars/0";
             pbUser.Location = new Point(0, 0);
+            pbUser.MaximumSize = new Size(41, 41);
+            pbUser.MinimumSize = new Size(41, 41);
             pbUser.Name = "pbUser";
             pbUser.Size = new Size(41, 41);
-            pbUser.SizeMode = PictureBoxSizeMode.AutoSize;
+            pbUser.SizeMode = PictureBoxSizeMode.StretchImage;
             pbUser.TabIndex = 1;
             pbUser.TabStop = false;
             // 
@@ -72,7 +74,6 @@
             Controls.Add(pbUser);
             Name = "Message";
             Size = new Size(123, 44);
-            Load += Message_Load;
             ((System.ComponentModel.ISupportInitialize)pbUser).EndInit();
             ResumeLayout(false);
             PerformLayout();

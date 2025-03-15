@@ -33,6 +33,8 @@
             flpMessages = new FlowLayoutPanel();
             flpChannels = new FlowLayoutPanel();
             pbSelectedIcon = new PictureBox();
+            btnSendMessage = new Button();
+            txtMessage = new TextBox();
             flpServers.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pbSelectedIcon).BeginInit();
             SuspendLayout();
@@ -59,10 +61,12 @@
             // 
             flpMessages.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             flpMessages.AutoScroll = true;
+            flpMessages.FlowDirection = FlowDirection.TopDown;
             flpMessages.Location = new Point(248, 12);
             flpMessages.Name = "flpMessages";
-            flpMessages.Size = new Size(643, 379);
+            flpMessages.Size = new Size(643, 350);
             flpMessages.TabIndex = 2;
+            flpMessages.WrapContents = false;
             // 
             // flpChannels
             // 
@@ -82,11 +86,33 @@
             pbSelectedIcon.TabIndex = 4;
             pbSelectedIcon.TabStop = false;
             // 
+            // btnSendMessage
+            // 
+            btnSendMessage.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnSendMessage.AutoSize = true;
+            btnSendMessage.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            btnSendMessage.Location = new Point(848, 368);
+            btnSendMessage.Name = "btnSendMessage";
+            btnSendMessage.Size = new Size(43, 25);
+            btnSendMessage.TabIndex = 5;
+            btnSendMessage.Text = "Send";
+            btnSendMessage.UseVisualStyleBackColor = true;
+            btnSendMessage.Click += btnSendMessage_Click;
+            // 
+            // txtMessage
+            // 
+            txtMessage.Location = new Point(248, 369);
+            txtMessage.Name = "txtMessage";
+            txtMessage.Size = new Size(594, 23);
+            txtMessage.TabIndex = 6;
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(903, 403);
+            Controls.Add(txtMessage);
+            Controls.Add(btnSendMessage);
             Controls.Add(pbSelectedIcon);
             Controls.Add(flpMessages);
             Controls.Add(flpChannels);
@@ -97,6 +123,7 @@
             flpServers.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)pbSelectedIcon).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -107,5 +134,7 @@
         private FlowLayoutPanel flowLayoutPanel3;
         private FlowLayoutPanel flpChannels;
         private PictureBox pbSelectedIcon;
+        private Button btnSendMessage;
+        private TextBox txtMessage;
     }
 }

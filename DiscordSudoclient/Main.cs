@@ -7,7 +7,8 @@ namespace DiscordSudoclient
 {
     public partial class Main : Form
     {
-        enum ChannelType {
+        enum ChannelType
+        {
             GUILD_TEXT = 0,  // a text channel within a server
             DM = 1,  // a direct message between users
             GUILD_VOICE = 2,  // a voice channel within a server
@@ -26,9 +27,11 @@ namespace DiscordSudoclient
         private Dictionary<string, JToken> Guilds = new Dictionary<string, JToken>();
         private Dictionary<string, JToken> Channels = new Dictionary<string, JToken>();
         private string SelectedId;
-        private string SelectedServer { 
-            get => SelectedId; 
-            set {
+        private string SelectedServer
+        {
+            get => SelectedId;
+            set
+            {
                 SelectedId = value;
                 var guild = Guilds[value];
                 pbSelectedIcon.ImageLocation = $"https://cdn.discordapp.com/icons/{guild["id"]}/{guild["properties"]["icon"]}";
@@ -37,14 +40,13 @@ namespace DiscordSudoclient
                 foreach (var channel in guild["channels"])
                 {
                     if ((ChannelType)((int)channel["type"]) != ChannelType.GUILD_TEXT) continue;
-                    if (ChannelId == null) SelectedChannel = ((string)channel["id"]);
                     var obj = new Channel();
                     obj.Name = ((string)channel["name"]);
                     obj.Id = ((string)channel["id"]);
                     obj.OnSelected += OnChannelSelect;
                     flpChannels.Invoke(new MethodInvoker(delegate { flpChannels.Controls.Add(obj); }));
                 }
-            } 
+            }
         }
         private string ChannelId;
         private string SelectedChannel
@@ -53,18 +55,84 @@ namespace DiscordSudoclient
             set
             {
                 ChannelId = value;
-                foreach (Channel obj in flpChannels.Controls) 
+                foreach (Channel obj in flpChannels.Controls)
                     obj.Selected = obj.Id == ChannelId;
             }
         }
+        private SubmitToken SubmitPopup = new SubmitToken();
         public Main()
         {
             InitializeComponent();
-            Client = new Gateway("MTA2MDg1NzE4Mzc1Mjk0OTc5MA.GY_eNX.oeFw-DUQKCUqgTp1ona7laVFdzea0ioTw0xTAo");
+            SubmitPopup.OnCancel += () => Dispose();
+            SubmitPopup.OnSubmit += OnSubmitToken;
+            SubmitPopup.Show();
+        }
+        void OnSubmitToken(string token)
+        {
+            Client = new Gateway(token);
             Client.Dispatch += OnDispatch;
         }
         void OnServerSelect(string id) { SelectedServer = id; }
-        void OnChannelSelect(string id) { SelectedChannel = id; }
+        private async void btnSendMessage_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var msg = new { content = txtMessage.Text };
+                txtMessage.Text = "";
+                var res = await Client.PostHTTP($"/channels/{SelectedChannel}/messages", msg);
+                if (res["message"] != null)
+                {
+                    PushMessageString((string)res["message"]);
+                    return;
+                }
+            } catch (Exception err)
+            {
+                PushMessageString($"Fatal: {err}");
+            }
+        }
+        void PushMessageString(string message)
+        {
+            var msg = new Message();
+            msg.Username = "Meta Info";
+            msg.Content = message;
+            flpMessages.Controls.Add(msg);
+        }
+        async void OnChannelSelect(string id)
+        {
+            SelectedChannel = id;
+            flpMessages.Controls.Clear();
+            PushMessageString("Loading channel contents");
+            try
+            {
+                var res = await Client.GetHTTP($"/channels/{SelectedChannel}/messages");
+                if (res == null)
+                {
+                    PushMessageString("No messages list can be located");
+                    return;
+                }
+                if (res.Type != JTokenType.Array)
+                {
+                    PushMessageString((string)(res["message"]));
+                    return;
+                }
+                flpMessages.Controls.Clear();
+                foreach (var message in res.Reverse())
+                {
+                    var msg = new Message();
+                    msg.Id = (string)message["id"];
+                    msg.UserId = (string)message["author"]["id"];
+                    msg.Username = (string)message["author"]["username"];
+                    msg.Content = (string)message["content"];
+                    if ((string?)message["author"]["avatar"] != null)
+                        msg.Profile = (string)message["author"]["avatar"];
+                    flpMessages.Invoke(new MethodInvoker(delegate { flpMessages.Controls.Add(msg); }));
+                }
+            }
+            catch (Exception err)
+            {
+                PushMessageString($"Fatal: {err}");
+            }
+        }
         void OnDispatch(string ev, JToken data)
         {
             switch (ev)
@@ -85,8 +153,44 @@ namespace DiscordSudoclient
                             channel["guild_id"] = guild["id"];
                             Channels.Add(((string?)channel["id"]), channel);
                         }
-                        if (SelectedId == null) SelectedServer = ((string)guild["id"]);
                     }
+                    break;
+                case "MESSAGE_CREATE":
+                    if ((string)data["channel_id"] != SelectedChannel) break;
+                    var msg = new Message();
+                    msg.Id = (string)data["id"];
+                    msg.UserId = (string)data["author"]["id"];
+                    msg.Username = (string)data["author"]["username"];
+                    msg.Content = (string)data["content"];
+                    if ((string?)data["author"]["avatar"] != null)
+                        msg.Profile = (string)data["author"]["avatar"];
+                    flpMessages.Invoke(new MethodInvoker(delegate {
+                        flpMessages.Controls.Add(msg);
+                        flpMessages.Controls.RemoveAt(0);
+                    }));
+                    break;
+                case "MESSAGE_UPDATE":
+                    flpMessages.Invoke(new MethodInvoker(delegate
+                    {
+                        for (int i = 0; i < flpMessages.Controls.Count; i++)
+                            if (((Message)flpMessages.Controls[i]).Id == (string)data["id"])
+                                ((Message)flpMessages.Controls[i]).Content = (string)data["content"];
+                    }));
+                    break;
+                case "MESSAGE_DELETE":
+                    flpMessages.Invoke(new MethodInvoker(delegate {
+                        for (int i = 0; i < flpMessages.Controls.Count; i++)
+                        if (((Message)flpMessages.Controls[i]).Id == (string)data["id"])
+                             flpMessages.Controls.RemoveAt(i--); 
+                    }));
+                    break;
+                case "MESSAGE_DELETE_BULK":
+                    flpMessages.Invoke(new MethodInvoker(delegate
+                    {
+                        for (int i = 0; i < flpMessages.Controls.Count; i++)
+                            if (data["ids"].Contains(((Message)flpMessages.Controls[i]).Id))
+                                flpMessages.Controls.RemoveAt(i--);
+                    }));
                     break;
             }
         }

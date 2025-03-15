@@ -3,6 +3,7 @@ using Websocket.Client;
 using Newtonsoft.Json.Linq;
 using Ionic.Zlib;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 
 // coppied from https://stackoverflow.com/a/66261077
 public class ZlibStreamContext
@@ -61,11 +62,10 @@ namespace DiscordSudoclient
         public Gateway(string token)
         {
             httpClient.DefaultRequestHeaders.Add("Authorization", token);
-            httpClient.DefaultRequestHeaders.Add("Content-Type", "application/json");
             Token = token;
             HeartBeat.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) =>
             {
-                Send(GatewayOpcode.Heartbeat, new JObject(Seq));
+                Send(GatewayOpcode.Heartbeat, Seq);
             };
             HeartBeat.AutoReset = true;
             Socket = new WebsocketClient(Url);
@@ -120,15 +120,15 @@ namespace DiscordSudoclient
         }
 
         void Send(GatewayOpcode op) { Send(op, null); }
-        void Send(GatewayOpcode op, JObject? d)
+        void Send(GatewayOpcode op, object? d)
         {
             var toSend = new JObject();
             toSend["op"] = (int)op;
-            toSend["d"] = d;
+            toSend["d"] = JToken.FromObject(d);
             Socket.Send(toSend.ToString());
         }
-        async Task<JObject> GetHTTP(string path) { return GetHTTP(path, new Dictionary<string, string>()); }
-        async Task<JObject> GetHTTP(string path, Dictionary<string, string> args)
+        public async Task<JToken> GetHTTP(string path) { return await GetHTTP(path, new Dictionary<string, string>()); }
+        public async Task<JToken> GetHTTP(string path, Dictionary<string, string> args)
         {
             string url = $"https://discord.com/api/v9{path}";
             bool firstArg = true;
@@ -141,16 +141,16 @@ namespace DiscordSudoclient
             var req = await httpClient.GetAsync(url);
             req.EnsureSuccessStatusCode();
             string res = await req.Content.ReadAsStringAsync();
-            return JObject.Parse(res);
+            return JToken.Parse(res);
         }
-        async Task<JObject> PostHTTP(string path, JObject body)
+        public async Task<JToken> PostHTTP(string path, object body)
         {
             string url = $"https://discord.com/api/v9{path}";
-            var data = JsonContent.Create<JObject>(body, new MediaTypeHeaderValue("application/json"));
+            var data = JsonContent.Create(body, new MediaTypeHeaderValue("application/json"));
             var req = await httpClient.PostAsync(url, data);
-            req.EnsureSuccessStatusCode();
             string res = await req.Content.ReadAsStringAsync();
-            return JObject.Parse(res);
+            req.EnsureSuccessStatusCode();
+            return JToken.Parse(res);
         }
     }
 }
