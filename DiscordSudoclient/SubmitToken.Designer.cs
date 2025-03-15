@@ -42,7 +42,6 @@
             txtToken.Name = "txtToken";
             txtToken.Size = new Size(546, 23);
             txtToken.TabIndex = 0;
-            txtToken.Text = "MTA2MDg1NzE4Mzc1Mjk0OTc5MA.GY_eNX.oeFw-DUQKCUqgTp1ona7laVFdzea0ioTw0xTAo";
             // 
             // btnOk
             // 
