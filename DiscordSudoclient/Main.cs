@@ -36,6 +36,7 @@ namespace DiscordSudoclient
                 var guild = Guilds[value];
                 pbSelectedIcon.ImageLocation = $"https://cdn.discordapp.com/icons/{guild["id"]}/{guild["properties"]["icon"]}";
 
+                // whenever we change servers, ensure that the channels list will update to follow
                 flpChannels.Controls.Clear();
                 foreach (var channel in guild["channels"])
                 {
@@ -57,59 +58,51 @@ namespace DiscordSudoclient
                 ChannelId = value;
                 foreach (Channel obj in flpChannels.Controls)
                     obj.Selected = obj.Id == ChannelId;
+                // idealy, this would be a function just because its not intended to ever be able to be called out of context
+                // but sadly C# has other ideas and has done declared i can not embed an async delegate inside of here
+                FillMessages();
             }
         }
         private SubmitToken SubmitPopup = new SubmitToken();
         public Main()
         {
+            /**
+             * btw server == guild as guild is the backend term and server is the front end one, 
+             *   its dumb but thats how discord set it up.
+             *   
+             * Layout of execution:
+             * - Retrieve the users token
+             * - Open a websocket at gateway.discord.gg (zlib-stream compressed JSON)
+             * - Send token to discord after recieving heartbeat interval
+             *      - On the heartbeat interval send heartbeat packet, if we recieve heartbeat then send heartbeat ack
+             * - Afterward discord will send us a blob of data containing everything required for app initialization
+             * - Copy and interprete this data into the Main class to render
+             */
             InitializeComponent();
+            // always ask for token, never store it, as i do not wish to be the reason someone gets there account hacked
             SubmitPopup.OnCancel += () => Dispose();
-            SubmitPopup.OnSubmit += OnSubmitToken;
+            SubmitPopup.OnSubmit += (string token) =>
+            {
+                Client = new Gateway(token);
+                Client.Dispatch += OnDispatch;
+            };
             SubmitPopup.Show();
         }
-        void OnSubmitToken(string token)
-        {
-            Client = new Gateway(token);
-            Client.Dispatch += OnDispatch;
-        }
         void OnServerSelect(string id) { SelectedServer = id; }
-        private async void btnSendMessage_Click(object sender, EventArgs e)
+        void OnChannelSelect(string id) { SelectedChannel = id; }
+        async void FillMessages()
         {
-            try
-            {
-                var msg = new { content = txtMessage.Text };
-                txtMessage.Text = "";
-                var res = await Client.PostHTTP($"/channels/{SelectedChannel}/messages", msg);
-                if (res["message"] != null)
-                {
-                    PushMessageString((string)res["message"]);
-                    return;
-                }
-            } catch (Exception err)
-            {
-                PushMessageString($"Fatal: {err}");
-            }
-        }
-        void PushMessageString(string message)
-        {
-            var msg = new Message();
-            msg.Username = "Meta Info";
-            msg.Content = message;
-            flpMessages.Controls.Add(msg);
-        }
-        async void OnChannelSelect(string id)
-        {
-            SelectedChannel = id;
             flpMessages.Controls.Clear();
             PushMessageString("Loading channel contents");
             try
             {
                 var res = await Client.GetHTTP($"/channels/{SelectedChannel}/messages");
-                if (res == null)
+                if (res == null) // case that shouldnt be physically possible, but its worth handling
                 {
                     PushMessageString("No messages list can be located");
                     return;
                 }
+                // if its not an array of messages, it can not be anything other then an error
                 if (res.Type != JTokenType.Array)
                 {
                     PushMessageString((string)(res["message"]));
@@ -123,7 +116,7 @@ namespace DiscordSudoclient
                     msg.UserId = (string)message["author"]["id"];
                     msg.Username = (string)message["author"]["username"];
                     msg.Content = (string)message["content"];
-                    if ((string?)message["author"]["avatar"] != null)
+                    if ((string?)message["author"]["avatar"] != null) // supposed to fallback to default img, but it doesnt for whatever reason
                         msg.Profile = (string)message["author"]["avatar"];
                     flpMessages.Invoke(new MethodInvoker(delegate { flpMessages.Controls.Add(msg); }));
                 }
@@ -193,6 +186,32 @@ namespace DiscordSudoclient
                     }));
                     break;
             }
+        }
+        private async void btnSendMessage_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var msg = new { content = txtMessage.Text };
+                txtMessage.Text = "";
+                var res = await Client.PostHTTP($"/channels/{SelectedChannel}/messages", msg);
+                if (res["message"] != null)
+                {
+                    PushMessageString((string)res["message"]);
+                    return;
+                }
+            }
+            catch (Exception err)
+            {
+                PushMessageString($"Fatal: {err}");
+            }
+        }
+        // sends fake messages to the user via the gui so we can verbosly indicate things such as appstate and errorstate
+        void PushMessageString(string message)
+        {
+            var msg = new Message();
+            msg.Username = "Meta Info";
+            msg.Content = message;
+            flpMessages.Controls.Add(msg);
         }
     }
 }

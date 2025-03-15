@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Net.Http.Headers;
 
 // coppied from https://stackoverflow.com/a/66261077
+// neded because discords zlib-stream implementation requires that state data from prior parses be used for all others
 public class ZlibStreamContext
 {
     private ZlibCodec _inflator;
@@ -61,13 +62,14 @@ namespace DiscordSudoclient
         private HttpClient httpClient = new HttpClient();
         public Gateway(string token)
         {
+            // set the token inside the HttpClient so we dont have to later
             httpClient.DefaultRequestHeaders.Add("Authorization", token);
             Token = token;
-            HeartBeat.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) =>
-            {
+            // just a tiny little guy that sends heartbeat whenever the timer elapses
+            HeartBeat.Elapsed += (object source, System.Timers.ElapsedEventArgs e) =>
                 Send(GatewayOpcode.Heartbeat, Seq);
-            };
             HeartBeat.AutoReset = true;
+            // open a websocket to discord so we can like actually do the part where this all works
             Socket = new WebsocketClient(Url);
             Socket.IsTextMessageConversionEnabled = false;
             Socket.MessageReceived.Subscribe(OnMessage);
@@ -88,21 +90,22 @@ namespace DiscordSudoclient
                     HeartBeat.Interval = ((double)data["heartbeat_interval"]);
                     HeartBeat.Enabled = true;
                     var msg = new JObject();
-                    msg["token"]        = Token;
+                    msg["token"]        = Token; // el token de chocolade
                     msg["capabilities"] = 16381;
                     msg["properties"]   = new JObject();
-                    msg["presence"]     = new JObject();
+                    msg["presence"]     = new JObject(); // the presence we will have when the gateway connection succeeds
                     msg["presence"]["status"]     = "online";
                     msg["presence"]["since"]      = 0;
                     msg["presence"]["activities"] = new JArray();
                     msg["presence"]["afk"]        = false;
                     msg["compress"]     = false;
                     msg["client_state"] = new JObject();
-                    msg["client_state"]["guild_versions"] = new JArray();
+                    msg["client_state"]["guild_versions"] = new JArray(); // dunno what this does tbh it was just in my other discord codebase
                     Send(GatewayOpcode.Identify, msg);
                     break;
             }
         }
+        // Take the message bytes we have and decode them with the inflator context
         async void FlushInflator()
         {
             byte[] decompressed = DecompressContext.InflateByteArray(Message);
@@ -111,6 +114,7 @@ namespace DiscordSudoclient
             Message = new byte[0];
             OnPacket((GatewayOpcode)(int)packet["op"], packet["d"], (int?)(packet["s"]), (string?)(packet["t"]));
         }
+        // Collect message chunks into one long byte array to be decompressed
         void OnMessage(ResponseMessage msg) {
             byte[] end = msg.Binary.Take(new Range(msg.Binary.Length - 4, msg.Binary.Length)).ToArray();
             Message = Message.Concat(FirstMessage ? msg.Binary.Take(new Range(2, msg.Binary.Length)) : msg.Binary).ToArray();
@@ -132,6 +136,7 @@ namespace DiscordSudoclient
         {
             string url = $"https://discord.com/api/v9{path}";
             bool firstArg = true;
+            // encode those silly little url arguments
             foreach (var arg in args)
             {
                 url += firstArg ? "?" : "&";
@@ -139,8 +144,9 @@ namespace DiscordSudoclient
                 firstArg = false;
             }
             var req = await httpClient.GetAsync(url);
-            req.EnsureSuccessStatusCode();
             string res = await req.Content.ReadAsStringAsync();
+            // do this after reading and parsing so i can debug with the discord error message included
+            req.EnsureSuccessStatusCode();
             return JToken.Parse(res);
         }
         public async Task<JToken> PostHTTP(string path, object body)
