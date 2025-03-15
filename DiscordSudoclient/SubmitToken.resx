@@ -127,7 +127,6 @@
   - send a message in any channel
   - select the most recent request, or the request marked messages if the following cant be performed
   - look for the entry Authorization, if you cant find it retry on the request marked messages
-  - copy the token inside the value
-alternatively, you can just use my test accounts token (i will be incinerating the token after the code gets graded dw)</value>
+  - copy the token inside the value</value>
   </data>
 </root>
